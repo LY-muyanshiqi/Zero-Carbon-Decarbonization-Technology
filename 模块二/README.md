@@ -32,7 +32,7 @@ AI 智能控碳，本质是 **AI 降能降本、碳是顺带收益**。用"光�
 │   ├── export_decision_json.py 导出调度建议JSON供网页
 │   ├── main.py               入口：跑一次"明日调度建议"
 │   ├── config.py             全局配置（电价/储能/光伏/柔性参数）
-│   ├── 调度建议.html + .json   可交互展示页
+│   ├── dispatch.html + dispatch.json   可交互展示页(英文名，避免中文fetch问题)
 │   └── output/               回测图表 + JSON
 │
 ├── data_source.xlsx          原始数据：光伏一期/二期/负荷
