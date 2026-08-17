@@ -26,9 +26,20 @@ def export(target_day_idx=-1, out_path=None):
     hourly = result["hourly"]
     summary = result["summary"]
 
+    # 储能减碳统计项（res 里已算好，透传出去给前端展示储能真实价值）
+    metrics = {
+        "储能充电总量_kWh": round(res.get("chg_kwh", 0)),
+        "储能放电总量_kWh": round(res.get("dis_kwh", 0)),
+        "充自光伏_kWh": round(res.get("chg_pv_kwh", 0)),
+        "放电替代购电_kWh": round(res.get("dis_replace_kwh", 0)),
+        "净购电_kWh": round(res.get("net_grid_kwh", 0)),
+        "余电上网_kWh": round(res.get("export_kwh", 0)),
+    }
+
     # 组装前端需要的结构
     payload = {
         "summary": summary,
+        "metrics": metrics,
         "hourly": hourly,
         # 便于 ECharts 直接用的数值数组
         "series": {
@@ -36,6 +47,8 @@ def export(target_day_idx=-1, out_path=None):
             "load": [h["预测负荷_kW"] for h in hourly],
             "pv": [h["预测光伏_kW"] for h in hourly],
             "grid_buy": [h["购电_kW"] for h in hourly],
+            "flex_use": [round(v) for v in res["flex"]],
+            "pbat": [round(p) for p in res["pbat"]],
             "flex_down": [h["曝气下调_kW"] for h in hourly],
             "soc": [h["SOC"] for h in hourly],
             "battery_action": [h["储能动作"] for h in hourly],

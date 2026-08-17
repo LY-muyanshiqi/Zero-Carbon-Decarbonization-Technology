@@ -59,7 +59,7 @@ td.num{font-family:'Consolas',monospace}
 
 <div class="grid">
   <div class="panel"><div class="hd">负荷 · 光伏 · 购电 逐时曲线 (kW)</div><div class="chart" id="cPower"></div></div>
-  <div class="panel"><div class="hd">储能充放 · 曝气下调 (kW) 与 SOC</div><div class="chart" id="cBattery"></div></div>
+  <div class="panel"><div class="hd">储能充放功率 (正=放电/负=充电) · 曝气下调 (kW) 与 SOC</div><div class="chart" id="cBattery"></div></div>
   <div class="panel full"><div class="hd">逐时操作指令明细</div><div id="tblWrap"></div></div>
 </div>
 
@@ -74,10 +74,13 @@ const s = d.summary, sr = d.series;
     `目标日 ${s['目标日']} | 模式 ${s['运行模式']} | 曝气下限 ${s['曝气下限']}% | 光伏匹配 ${s['匹配相似日'].length}个相似日`;
 
   // KPI 卡片
+  const m = d.metrics || {};
   const kpis = [
     {lb:'绿电占比', v:s['绿电占比_pct'], u:'%', hl:false},
     {lb:'外购电量', v:s['外购电量_kWh'].toLocaleString(), u:'kWh', hl:false},
     {lb:'分时购电成本', v:(s['分时购电成本_元']/10000).toFixed(1), u:'万元', hl:false},
+    {lb:'储能替代购电', v:((m['放电替代购电_kWh']??0)/1000).toFixed(1), u:'MWh', hl:true},
+    {lb:'余电上网', v:(m['余电上网_kWh']??0).toLocaleString(), u:'kWh', hl:(m['余电上网_kWh']??0)>0},
     {lb:'日总负荷', v:(s['预测日总负荷_kWh']/1000).toFixed(0), u:'MWh', hl:false},
     {lb:'日总光伏', v:(s['预测日总光伏_kWh']/1000).toFixed(0), u:'MWh', hl:false},
     {lb:'运行模式', v:s['运行模式'], u:s['冲击负荷豁免']?'豁免':'', hl:s['运行模式']==='安全'},
@@ -99,6 +102,7 @@ const s = d.summary, sr = d.series;
       {name:'负荷',type:'line',data:sr.load,smooth:true,showSymbol:false,lineStyle:{width:2,color:'#e2e8f0'},areaStyle:{color:'rgba(226,232,240,0.06)'}},
       {name:'光伏',type:'line',data:sr.pv,smooth:true,showSymbol:false,lineStyle:{width:2,color:'#00e396'},areaStyle:{color:'rgba(0,227,150,0.10)'}},
       {name:'购电',type:'line',data:sr.grid_buy,smooth:true,showSymbol:false,lineStyle:{width:2,color:'#f2a23a'}},
+      {name:'实际用电',type:'line',data:sr.flex_use,smooth:true,showSymbol:false,lineStyle:{width:2,color:'#00b4d8',type:'dashed'}},
     ]
   });
 
@@ -115,17 +119,22 @@ const s = d.summary, sr = d.series;
       {type:'value',name:'SOC',min:0,max:1,nameTextStyle:{color:'#5a7a8a'},axisLabel:{color:'#5a7a8a',formatter:'{value}'},splitLine:{show:false}},
     ],
     series:[
-      {name:'曝气下调',type:'bar',data:sr.flex_down,itemStyle:{color:'#00b4d8'},barWidth:'50%'},
+      {name:'储能功率',type:'bar',data:sr.pbat,itemStyle:{color:function(p){return p.value>=0?'#00e396':'#00b4d8'}},barWidth:'35%'},
+      {name:'曝气下调',type:'bar',data:sr.flex_down,itemStyle:{color:'#5a7a8a'},barWidth:'35%'},
       {name:'SOC',type:'line',yAxisIndex:1,data:sr.soc,smooth:true,showSymbol:false,lineStyle:{width:2,color:'#ef4444'}},
     ]
   });
 
   // 表格：逐时操作
-  const rows = d.hourly.map(h=>{
+  const rows = d.hourly.map((h,i)=>{
     const act = h['储能动作'];
     const badge = act.startsWith('充电')?`<span class="badge chg">${act}</span>`
       : act.startsWith('放电')?`<span class="badge dis">${act}</span>`
       : `<span class="badge idle">静置</span>`;
+    const pv = h['光伏去向'];
+    const pvOn = pv && pv.startsWith('余电')?`<span class="badge dis">${pv}</span>`
+      : pv==='全部自用'?`<span class="badge eco">自用</span>`
+      : `<span class="badge idle">无</span>`;
     return `<tr>
       <td>${h['小时']}</td>
       <td class="num">${h['预测负荷_kW']}</td>
@@ -133,11 +142,13 @@ const s = d.summary, sr = d.series;
       <td>${badge}</td>
       <td class="num">${h['购电_kW']}</td>
       <td class="num">${h['曝气下调_kW']}</td>
+      <td>${pvOn}</td>
+      <td class="num">${sr.flex_use[i]??'-'}</td>
       <td class="num">${h['SOC']}</td>
     </tr>`;
   }).join('');
   document.getElementById('tblWrap').innerHTML =
-    `<table><thead><tr><th>时</th><th>负荷kW</th><th>光伏kW</th><th>储能动作</th><th>购电kW</th><th>曝气下调kW</th><th>SOC</th></tr></thead><tbody>${rows}</tbody></table>`;
+    `<table><thead><tr><th>时</th><th>负荷kW</th><th>光伏kW</th><th>储能动作</th><th>购电kW</th><th>曝气下调kW</th><th>光伏去向</th><th>实际用电kW</th><th>SOC</th></tr></thead><tbody>${rows}</tbody></table>`;
 
   window.addEventListener('resize',()=>{c1.resize();c2.resize();});
 })();
