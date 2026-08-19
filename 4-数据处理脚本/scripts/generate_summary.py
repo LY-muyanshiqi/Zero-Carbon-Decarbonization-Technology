@@ -20,7 +20,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # 路径
-BASE = os.path.dirname(os.path.abspath(__file__))          # 公用/公用
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 公用/公用（本脚本位于 4-数据处理脚本/scripts/）
 MODULE2_JSON = os.path.join(BASE, "模块二", "智能调度", "output", "yearly_dispatch.json")
 MODULE3_JSON = os.path.join(BASE, "模块三", "code", "carbon_results.json")
 OUT = os.path.join(BASE, "3-分析报告文档", "零碳项目_全年成果汇总_20260819.xlsx")
