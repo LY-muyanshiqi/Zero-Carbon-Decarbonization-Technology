@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "module": "模块三-碳核算",
+    "ef_report": 0.4419,
+    "scope": "三账分离"
+  },
+  "results": {
+    "scope1": {
+      "q_year_m3": 67160000.0,
+      "cod_removed_kg": 9402400.0,
+      "cod_sludge_kg": 1410360.0,
+      "ch4_mass_kg": 99900.5,
+      "ch4_co2e_kg": 2797214.0,
+      "tn_removed_kg": 1544680.0,
+      "n2o_mass_kg": 38837.66857142857,
+      "n2o_co2e_kg": 10291982.17142857,
+      "scope1_kg": 13089196.17142857
+    },
+    "scope2": {
+      "e_grid_kwh": 54485111.1,
+      "scope2_kg": 24076970.59509,
+      "ef_report": 0.4419
+    },
+    "project": {
+      "baseline_grid_kwh": 57939784.7,
+      "project_grid_kwh": 54485111.1,
+      "BE_kg": 25996120.075749997,
+      "PE_kg": 24176836.01845,
+      "LE_kg": 0.0,
+      "ER_kg": 1819284.0572999977,
+      "ER_t": 1819.2840572999976
+    },
+    "lca": {
+      "e_life_kwh": 19466981.27599654,
+      "embodied_total_kg": 280000.0,
+      "embodied_net_kg": 252000.0,
+      "life_years": 12.0,
+      "embodied_annual_kg": 21000.0,
+      "er_net_yearly_kg": 1798284.0572999977
+    },
+    "total_plant_kg": 37166166.76651857
+  }
+}

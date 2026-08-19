@@ -20,12 +20,13 @@ from mode_controller import ModeController
 
 
 def load_data_source():
-    """读 data_source.xlsx 的三张表，返回全年光伏(kW)+负荷(kW) 的二维数组。"""
+    """读 data_source.xlsx，返回全年光伏(kW)+负荷(kW) 的二维数组。
+
+    光伏用「光伏合计」sheet（一期+二期+车棚三站真实合计，6.4MW峰值），
+    再乘 PV_SCALE 放大到规划装机 12.2MW。
+    """
     wb = openpyxl.load_workbook(config.DATA_SOURCE_XLSX, read_only=True, data_only=True)
     names = wb.sheetnames
-    pv1 = wb[names[0]]
-    pv2 = wb[names[1]]
-    ld = wb[names[2]]
 
     def hourly(ws):
         out = []
@@ -35,15 +36,28 @@ def load_data_source():
                 out.append(vals)
         return np.array(out)
 
-    pv1_arr = hourly(pv1)
-    pv2_arr = hourly(pv2)
+    # 光伏合计 sheet（三站真实合计）；负荷表
+    if "光伏合计" in names:
+        pv_all = wb["光伏合计"]
+    else:
+        # 兜底：无合计sheet时退化为一期+二期
+        pv_all = wb[names[0]]
+        pv2 = wb[names[1]]
+        pv_arr2 = hourly(pv2)
+        pv_arr1 = hourly(pv_all) + pv_arr2
+        ld = wb[names[2]]
+        load_arr = hourly(ld) * 1000.0
+        return pv_arr1 * config.PV_SCALE, load_arr[:len(pv_arr1)], len(pv_arr1)
+
+    ld = wb["负荷数据"]
+    pv_arr = hourly(pv_all)
     load_arr = hourly(ld) * 1000.0   # 负荷 MW -> kW
 
-    day_num = len(pv1_arr)
+    day_num = len(pv_arr)
     load_arr = load_arr[:day_num]    # 截齐到光伏天数
 
-    # 光伏叠加并放大
-    pv_arr = (pv1_arr + pv2_arr) * config.PV_SCALE
+    # 三站真实合计 × PV_SCALE = 规划装机
+    pv_arr = pv_arr * config.PV_SCALE
 
     return pv_arr, load_arr, day_num
 

@@ -20,6 +20,8 @@ PROJECT_ROOT = os.path.dirname(MODULE2_DIR)
 PV_WEATHER_CSV = os.path.join(PROJECT_ROOT, "5-过程分析数据", "合并数据集_光伏×天气.csv")
 # 原始调度数据（光伏一期/二期/负荷，优化层回测用）
 DATA_SOURCE_XLSX = os.path.join(MODULE2_DIR, "data_source.xlsx")
+# 节点电价文件（含日前/实时电价，单位元/MWh）
+PRICE_XLSX = os.path.join(PROJECT_ROOT, "2-原始数据文件", "电力天气整合数据_逐小时.xlsx")
 
 # 输出目录
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
@@ -33,8 +35,8 @@ PV_SCALE = 2.0
 PV_CAPACITY_KW = 6080.0 * PV_SCALE
 
 # ---------------- 储能 ----------------
-E_BAT_MAX = 16000.0       # 储能额定容量 kWh (16 MWh)
-P_BAT_MAX = 8000.0        # 储能最大充放电功率 kW (8 MW，2小时储能)
+E_BAT_MAX = 4000.0        # 储能额定容量 kWh (4 MWh，改进版)
+P_BAT_MAX = 2000.0        # 储能最大充放电功率 kW (2 MW，2小时储能)
 ETA_CH = 0.95             # 充电效率
 ETA_DIS = 0.95            # 放电效率
 SOC_MIN = 0.2
@@ -94,6 +96,38 @@ def tou_price(t):
         return 0.262    # 低谷 0-8
     else:
         return 0.655    # 平段
+
+
+def load_realtime_price():
+    """加载广东电力现货节点实时电价，返回 {date: np.array(24)}（元/kWh）。
+
+    读取 PRICE_XLSX 的「节点实时电价_元MWh」列，÷1000 转元/kWh，
+    负价 clip 到 0。按天组织成 24 元时长度的数组。
+    文件缺失时回退到固定峰谷价 tou_price。
+    """
+    import pandas as pd
+    import numpy as np
+
+    if not os.path.exists(PRICE_XLSX):
+        return None
+
+    df = pd.read_excel(PRICE_XLSX)
+    rt_col = "节点实时电价_元MWh"
+    if rt_col not in df.columns:
+        rt_col = df.columns[-1]
+
+    ts = pd.to_datetime(df["日期"]) + pd.to_timedelta(df["小时"], unit="h")
+    price = df[rt_col].astype(float).clip(lower=0) / 1000.0  # 元/MWh → 元/kWh
+
+    out = {}
+    for t, p in zip(ts, price.values):
+        d = t.date()
+        h = t.hour
+        if d not in out:
+            out[d] = np.zeros(24)
+        out[d][h] = p
+    return out
+
 
 # ② 基本电费（需量）—— 储能削峰的真实收益来源
 DEMAND_PRICE = 38.0    # 需量电价 元/kW/月
