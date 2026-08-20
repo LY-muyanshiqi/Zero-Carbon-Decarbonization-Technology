@@ -103,7 +103,7 @@ def load_realtime_price():
 
     读取 PRICE_XLSX 的「节点实时电价_元MWh」列，÷1000 转元/kWh，
     负价 clip 到 0。按天组织成 24 元时长度的数组。
-    文件缺失时回退到固定峰谷价 tou_price。
+    文件缺失时返回 None（调用方回退到 tou_price）。
     """
     import pandas as pd
     import numpy as np
@@ -127,6 +127,34 @@ def load_realtime_price():
             out[d] = np.zeros(24)
         out[d][h] = p
     return out
+
+
+# 数据起点（负荷/光伏数据 2025-07-01 起）
+DATA_START_DATE = "2025-07-01"
+
+_realtime_price_cache = None
+
+
+def price_for_day(day_idx: int):
+    """返回第 day_idx 天（从 DATA_START_DATE 起）的 24h 电价数组（元/kWh）。
+
+    优先用真实节点现货价；文件缺失或无该日数据时回退到固定 tou_price。
+    结果缓存，避免重复读 Excel。
+    """
+    import numpy as np
+    from datetime import datetime, timedelta
+
+    global _realtime_price_cache
+    if _realtime_price_cache is None:
+        _realtime_price_cache = load_realtime_price()
+
+    fallback = np.array([tou_price(t) for t in range(24)])
+
+    if _realtime_price_cache is None:
+        return fallback
+
+    target_date = (datetime.strptime(DATA_START_DATE, "%Y-%m-%d") + timedelta(days=day_idx)).date()
+    return _realtime_price_cache.get(target_date, fallback)
 
 
 # ② 基本电费（需量）—— 储能削峰的真实收益来源

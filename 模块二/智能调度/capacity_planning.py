@@ -26,7 +26,7 @@ from validate_optimizer import load_data_source
 from mode_controller import ModeController
 
 
-def annual_operation(pv_arr, load_arr, E_max, P_max, soc0, price, w_cost, w_green):
+def annual_operation(pv_arr, load_arr, E_max, P_max, soc0, w_cost, w_green):
     """给定光伏倍率 + 储能规模，跑全年，返回全年电量+分时成本。"""
     day_num = len(pv_arr)
     soc_now = soc0
@@ -42,6 +42,7 @@ def annual_operation(pv_arr, load_arr, E_max, P_max, soc0, price, w_cost, w_gree
         flex_energy_ratio=config.FLEX_ENERGY_RATIO,
     )
     for d in range(day_num):
+        price = config.price_for_day(d)
         flex_min_override, flex_energy_ratio, mode, is_shock = mc.decide(load_arr[d])
         res = daily_opt_dispatch(
             pv_kw=pv_arr[d], load_kw=load_arr[d],
@@ -81,19 +82,18 @@ def annual_operation(pv_arr, load_arr, E_max, P_max, soc0, price, w_cost, w_gree
     }
 
 
-def baseline_cost(load_arr, price):
-    """无光伏无储能基准：全年负荷按分时电价购电的总成本。"""
-    return sum((load_arr[d] * price).sum() for d in range(len(load_arr)))
+def baseline_cost(load_arr):
+    """无光伏无储能基准：全年负荷按逐日节点电价购电的总成本。"""
+    return sum((load_arr[d] * config.price_for_day(d)).sum() for d in range(len(load_arr)))
 
 
 def capacity_planning():
     config.print_config()
     pv_arr_base, load_arr, day_num = load_data_source()
-    price = np.array([config.tou_price(t) for t in range(24)])
 
-    # 基准：无光伏无储能，全年负荷全部按分时电价购电
-    base_cost = baseline_cost(load_arr, price)
-    print(f"\n基准（无光伏无储能）分时购电成本 = {base_cost/1e4:.0f} 万元/年")
+    # 基准：无光伏无储能，全年负荷全部按逐日节点电价购电
+    base_cost = baseline_cost(load_arr)
+    print(f"\n基准（无光伏无储能）购电成本 = {base_cost/1e4:.0f} 万元/年")
     print(f"（等效平均购电价 {base_cost/load_arr.sum():.3f} 元/kWh）")
 
     pv_scales = [1.0, 1.5, 2.0, 2.5, 3.0]
@@ -114,7 +114,7 @@ def capacity_planning():
         pv_arr = pv_arr_base / config.PV_SCALE * pv_scale
         for E_max, P_max in batteries:
             ops = annual_operation(pv_arr, load_arr, E_max, P_max,
-                                   config.SOC_INIT, price,
+                                   config.SOC_INIT,
                                    config.W_COST, config.W_GREEN)
 
             pv_capacity_kw = 6080.0 * pv_scale

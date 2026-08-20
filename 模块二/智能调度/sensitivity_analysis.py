@@ -26,9 +26,9 @@ from mode_controller import ModeController
 def run_scenario(use_pv, use_storage, use_flex):
     """跑一整年，返回 (外购电量kWh, 绿电占比%, 购电成本元, 年节省元)。"""
     pv_arr, load_arr, day_num = load_data_source()
-    price = np.array([config.tou_price(t) for t in range(24)])
     soc_now = config.SOC_INIT
     buy = export = net = load_total = pv_total = cost_total = flex_down_total = 0.0
+    base_cost = 0.0
     mc = ModeController(
         flex_min=config.FLEX_MIN, flex_min_safe=config.FLEX_MIN_SAFE,
         flex_max=config.FLEX_MAX,
@@ -41,6 +41,8 @@ def run_scenario(use_pv, use_storage, use_flex):
     for d in range(day_num):
         pv = pv_arr[d] if use_pv else np.zeros(24)
         load = load_arr[d]
+        price = config.price_for_day(d)
+        base_cost += (load * price).sum()
         E = config.E_BAT_MAX if use_storage else 0.0
         P = config.P_BAT_MAX if use_storage else 0.0
 
@@ -76,8 +78,7 @@ def run_scenario(use_pv, use_storage, use_flex):
         flex_down_total += res["flex_down"].sum()
 
     green = (load_total - net) / load_total * 100 if load_total > 0 else 0.0
-    # 基准成本用"无光伏无储能"的全额购电（按分时价）
-    base_cost = sum((load_arr[d] * price).sum() for d in range(day_num))
+    # 基准成本用"无光伏无储能"的全额购电（逐日节点电价）
     saving = base_cost - cost_total
     return buy, green, cost_total, saving, flex_down_total
 

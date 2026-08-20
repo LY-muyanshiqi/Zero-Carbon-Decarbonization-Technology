@@ -93,12 +93,14 @@ def backtest_full_year():
     shock_days = 0     # 冲击负荷豁免天数
     flex_down_total = 0.0  # 全年曝气下调总量（kWh），度量柔性调节幅度
 
-    # 分时电价数组
-    price = np.array([config.tou_price(t) for t in range(24)])
+    # 分时电价：逐日读取真实节点现货价（缺省回退固定峰谷价）
+    baseline_cost_total = 0.0  # 无光伏无储能基准成本（逐日电价累加）
 
     for d in range(day_num):
         pv = pv_arr[d]
         load = load_arr[d]
+        price = config.price_for_day(d)
+        baseline_cost_total += (load * price).sum()
 
         # 双模式判定：决定今日曝气下限 + 总量下调比例
         flex_min_override, flex_energy_ratio, mode, is_shock = mc.decide(load)
@@ -165,9 +167,9 @@ def backtest_full_year():
     print(f"全年曝气下调总量: {flex_down_total:,.0f} kWh ({flex_down_total/load_total*100:.2f}% 负荷)")
     print(f"  （柔性负荷在光伏富余时段主动下调曝气、消纳绿电的幅度）")
 
-    # 对比：无光伏无储能的基准成本（负荷按分时电价全额购电）
-    baseline_cost = sum((load_arr[d] * price).sum() for d in range(day_num))
-    print(f"\n基准(无光伏无储能)分时购电成本: {baseline_cost:,.0f} 元")
+    # 对比：无光伏无储能的基准成本（负荷按逐日节点电价全额购电）
+    baseline_cost = baseline_cost_total
+    print(f"\n基准(无光伏无储能)购电成本: {baseline_cost:,.0f} 元")
     print(f"年节省: {baseline_cost - cost_total:,.0f} 元 ({(baseline_cost-cost_total)/1e4:.0f} 万元)")
 
     # 储能减碳贡献（供后置碳核算拆分"储能单独减排"，docx 第三节）

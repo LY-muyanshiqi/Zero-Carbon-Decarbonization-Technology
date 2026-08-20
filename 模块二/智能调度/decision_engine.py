@@ -86,7 +86,7 @@ def run_daily_decision(target_day_idx=-1, k=5, prev_mode=None, prev_low_hours=0,
     flex_min_override, flex_energy_ratio, mode, is_shock = mc.decide(load_24h)
 
     # ---- 4. 优化调度 ----
-    price = np.array([config.tou_price(t) for t in range(24)])
+    price = config.price_for_day(target_idx)
     res = daily_opt_dispatch(
         pv_kw=pv_24h, load_kw=load_24h,
         E_max=config.E_BAT_MAX, P_max=config.P_BAT_MAX,
